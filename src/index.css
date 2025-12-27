@@ -48,3 +48,27 @@ html { scroll-behavior: smooth; }
     transparent 65%
   );
 }
+html { scroll-behavior: smooth; }
+
+.reveal-init {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
