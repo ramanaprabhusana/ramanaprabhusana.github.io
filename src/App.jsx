@@ -9,28 +9,38 @@ function clamp01(x) {
   return Math.min(1, Math.max(0, x));
 }
 
+/**
+ * requestAnimationFrame-throttled scroll listener
+ * Uses a ref so we do not re-register listeners on every render.
+ */
 function useRafScroll(callback) {
+  const cbRef = useRef(callback);
+
+  useEffect(() => {
+    cbRef.current = callback;
+  }, [callback]);
+
   useEffect(() => {
     let raf = 0;
 
-    const onScroll = () => {
+    const run = () => {
       if (raf) return;
       raf = window.requestAnimationFrame(() => {
         raf = 0;
-        callback();
+        cbRef.current?.();
       });
     };
 
-    callback();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    run();
+    window.addEventListener("scroll", run, { passive: true });
+    window.addEventListener("resize", run);
 
     return () => {
       if (raf) window.cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", run);
+      window.removeEventListener("resize", run);
     };
-  }, [callback]);
+  }, []);
 }
 
 function useScrollProgress() {
@@ -306,11 +316,142 @@ function StickyStory({ title, subtitle, items }) {
   );
 }
 
+/* ----------------------------- contact UI bits ---------------------------- */
+
+function Icon({ children, className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={["h-5 w-5", className].join(" ")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function ResumeIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+      <path d="M14 2v5h5" />
+      <path d="M8 13h8" />
+      <path d="M8 17h8" />
+      <path d="M8 9h3" />
+    </Icon>
+  );
+}
+
+function LocationIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z" />
+      <path d="M12 10.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+    </Icon>
+  );
+}
+
+function PhoneIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.8.3 1.6.6 2.4a2 2 0 0 1-.4 2.1L8 9.5a16 16 0 0 0 6.5 6.5l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.6.5 2.4.6a2 2 0 0 1 1.7 2z" />
+    </Icon>
+  );
+}
+
+function MailIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M4 4h16v16H4z" />
+      <path d="m4 6 8 7 8-7" />
+    </Icon>
+  );
+}
+
+function LinkedInIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4V9h4v2" />
+      <path d="M2 9h4v12H2z" />
+      <path d="M4 4a2 2 0 1 0 0.01 0z" />
+    </Icon>
+  );
+}
+
+function SendIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4z" />
+    </Icon>
+  );
+}
+
+function ArrowUpIcon({ className = "" }) {
+  return (
+    <Icon className={className}>
+      <path d="M12 19V5" />
+      <path d="m5 12 7-7 7 7" />
+    </Icon>
+  );
+}
+
+function ContactTile({ icon, label, value, href, onClick }) {
+  const Inner = (
+    <div className="p-5 flex items-center gap-4">
+      <div className="h-10 w-10 rounded-xl border border-white/10 bg-white/5 grid place-items-center text-lime-300">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs text-neutral-200/60">{label}</div>
+        <div className="mt-0.5 font-semibold text-neutral-100 truncate">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (href) {
+    const isHttp = href.startsWith("http");
+    return (
+      <a
+        href={href}
+        onClick={onClick}
+        className="block rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
+        target={isHttp ? "_blank" : undefined}
+        rel={isHttp ? "noreferrer" : undefined}
+      >
+        {Inner}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
+    >
+      {Inner}
+    </button>
+  );
+}
+
 /* ----------------------------------- App ---------------------------------- */
 
 export default function App() {
   useReveal();
   const progress = useScrollProgress();
+
+  const [showTop, setShowTop] = useState(false);
+  useRafScroll(() => {
+    setShowTop(window.scrollY > 900);
+  });
 
   const profile = useMemo(
     () => ({
@@ -319,6 +460,13 @@ export default function App() {
       phone: "(347) 269-9365",
       linkedin: "https://www.linkedin.com/in/ramanaprabhusana/",
       photo: "brand/profile.jpg",
+
+      // Put your resume pdf in: public/Resume.pdf
+      resume: "Resume.pdf",
+
+      // Optional. Delete this line if you do not want location shown.
+      location: "West Lafayette, IN",
+
       objective:
         "Seeking 2026 Internship or Full-time opportunities in Analytics and technology",
       headline: "Senior Lead Analyst. Pharma forecasting. Analytics and automation.",
@@ -508,6 +656,7 @@ export default function App() {
     []
   );
 
+  // Education: removed Ascent and Krishna Vikash
   const education = useMemo(
     () => [
       {
@@ -524,25 +673,11 @@ export default function App() {
         location: "Vellore, TN, India",
         logo: "brand/vit.png",
       },
-      {
-        school: "Ascent Classes",
-        degree: "High School",
-        dates: "Apr 2011 to Mar 2013",
-        location: "India",
-        logoChoices: ["brand/ascent.png", "brand/ascent.svg", "brand/ascent.jpg"],
-      },
-      {
-        school: "Krishna Vikash Group of Institutions",
-        degree: "Secondary School",
-        dates: "Mar 2011 to Mar 2011",
-        location: "India",
-        logo: "brand/krishna-vikash.png",
-      },
     ],
     []
   );
 
-  // Scroll-based background themes. This is the "page changes" effect.
+  // Scroll-based background themes
   const THEMES = useMemo(
     () => ({
       top: { a: "rgba(255,255,255,0.10)", b: "rgba(255,255,255,0.06)" },
@@ -551,7 +686,7 @@ export default function App() {
       projects: { a: "rgba(80,255,170,0.14)", b: "rgba(255,255,255,0.06)" },
       skills: { a: "rgba(255,200,0,0.14)", b: "rgba(255,255,255,0.06)" },
       education: { a: "rgba(0,160,255,0.14)", b: "rgba(255,255,255,0.06)" },
-      contact: { a: "rgba(255,80,200,0.14)", b: "rgba(255,255,255,0.06)" },
+      contact: { a: "rgba(120,255,80,0.16)", b: "rgba(255,255,255,0.06)" },
     }),
     []
   );
@@ -591,6 +726,29 @@ export default function App() {
     els.forEach((x) => io.observe(x.el));
     return () => io.disconnect();
   }, []);
+
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
+
+  const onSubmitMessage = (e) => {
+    e.preventDefault();
+
+    const name = (form.name || "").trim();
+    const email = (form.email || "").trim();
+    const msg = (form.message || "").trim();
+
+    const subject = "Portfolio inquiry";
+    const body =
+      `Name: ${name || "-"}\n` +
+      `Email: ${email || "-"}\n\n` +
+      `${msg || "-"}`;
+
+    const mailto =
+      `mailto:${encodeURIComponent(profile.email)}` +
+      `?subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(body)}`;
+
+    window.location.href = mailto;
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -673,7 +831,10 @@ export default function App() {
       {/* navbar */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-neutral-950/60 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex items-center justify-between">
-          <a href="#top" className="flex items-center gap-3 font-semibold tracking-tight">
+          <a
+            href="#top"
+            className="flex items-center gap-3 font-semibold tracking-tight"
+          >
             <span className="h-8 w-8 rounded-full overflow-hidden border border-white/10 bg-white/5 grid place-items-center">
               <SafeImg
                 src={asset(profile.photo)}
@@ -724,14 +885,17 @@ export default function App() {
             <div className="mt-4 grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-start">
               <div>
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                  {/* bigger photo with glow */}
+                  <div className="relative h-32 w-48 sm:h-40 sm:w-64 md:h-44 md:w-72 rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-sm">
+                    <div className="pointer-events-none absolute -inset-6 rounded-[28px] bg-white/10 blur-2xl opacity-40" />
                     <SafeImg
                       src={asset(profile.photo)}
                       alt={profile.name}
-                      className="h-full w-full object-cover"
+                      className="relative h-full w-full object-cover"
                       fallbackText="RP"
                     />
                   </div>
+
                   <div className="min-w-0">
                     <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight">
                       {profile.headline}
@@ -773,7 +937,9 @@ export default function App() {
               <div className="lg:block">
                 <Card className="overflow-hidden">
                   <div className="p-5">
-                    <div className="text-xs text-neutral-200/60">Quick contact</div>
+                    <div className="text-xs text-neutral-200/60">
+                      Quick contact
+                    </div>
                     <div className="mt-3 space-y-3">
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                         <div className="text-xs text-neutral-200/60">Email</div>
@@ -793,7 +959,9 @@ export default function App() {
                           />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold">Purdue MSBAIM</div>
+                          <div className="text-sm font-semibold">
+                            Purdue MSBAIM
+                          </div>
                           <div className="text-xs text-neutral-200/60">
                             Aug 2025 to Present
                           </div>
@@ -842,8 +1010,12 @@ export default function App() {
                     </div>
                     <div className="min-w-0">
                       <div className="font-semibold leading-tight">{e.role}</div>
-                      <div className="text-sm text-neutral-200/70">{e.company}</div>
-                      <div className="mt-1 text-xs text-neutral-200/60">{e.dates}</div>
+                      <div className="text-sm text-neutral-200/70">
+                        {e.company}
+                      </div>
+                      <div className="mt-1 text-xs text-neutral-200/60">
+                        {e.dates}
+                      </div>
                     </div>
                   </div>
 
@@ -957,10 +1129,16 @@ export default function App() {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold">{ed.school}</h3>
-                      <span className="text-xs text-neutral-200/60">{ed.dates}</span>
+                      <span className="text-xs text-neutral-200/60">
+                        {ed.dates}
+                      </span>
                     </div>
-                    <div className="mt-2 text-sm text-neutral-200/70">{ed.degree}</div>
-                    <div className="mt-1 text-xs text-neutral-200/60">{ed.location}</div>
+                    <div className="mt-2 text-sm text-neutral-200/70">
+                      {ed.degree}
+                    </div>
+                    <div className="mt-1 text-xs text-neutral-200/60">
+                      {ed.location}
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -969,52 +1147,143 @@ export default function App() {
         </Section>
 
         {/* contact */}
-        <Section
-          id="contact"
-          title="Contact"
-          subtitle="Open to 2026 internship and full-time opportunities."
-        >
-          <Card>
-            <div className="p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              <div className="text-sm text-neutral-200/70">
-                <div>
-                  Email:{" "}
-                  <a
-                    className="text-neutral-100 underline underline-offset-4 hover:opacity-80"
-                    href={`mailto:${profile.email}`}
-                  >
-                    {profile.email}
-                  </a>
-                </div>
-                <div className="mt-2">
-                  Phone: <span className="text-neutral-100">{profile.phone}</span>
-                </div>
-              </div>
+        <section id="contact" className="scroll-mt-24 py-14">
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-widest text-lime-300/90">
+              Contact Me
+            </p>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-50">
+              Let&apos;s connect
+            </h2>
+          </div>
 
-              <div className="flex gap-3">
-                <a
-                  className="text-sm rounded-xl border border-white/15 bg-white/5 px-3 py-2 hover:bg-white/10 transition"
-                  href={profile.linkedin}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LinkedIn
-                </a>
-                <a
-                  className="text-sm rounded-xl border border-white/15 bg-white/10 px-3 py-2 hover:bg-white/15 transition"
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* left */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-50">
+                Get In Touch
+              </h3>
+              <div className="mt-4 grid gap-4">
+                <ContactTile
+                  icon={<ResumeIcon />}
+                  label="Resume"
+                  value="View/Download Resume"
+                  href={asset(profile.resume)}
+                />
+
+                {profile.location ? (
+                  <ContactTile
+                    icon={<LocationIcon />}
+                    label="Location"
+                    value={profile.location}
+                    href="#contact"
+                  />
+                ) : null}
+
+                <ContactTile
+                  icon={<PhoneIcon />}
+                  label="Phone"
+                  value={profile.phone}
+                  href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}
+                />
+
+                <ContactTile
+                  icon={<MailIcon />}
+                  label="Email"
+                  value={profile.email}
                   href={`mailto:${profile.email}`}
-                >
-                  Email me
-                </a>
+                />
+
+                <ContactTile
+                  icon={<LinkedInIcon />}
+                  label="LinkedIn"
+                  value="linkedin.com/in/ramanaprabhusana"
+                  href={profile.linkedin}
+                />
               </div>
             </div>
-          </Card>
-        </Section>
+
+            {/* right */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-50">
+                Send Me a Message
+              </h3>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-sm">
+                <form onSubmit={onSubmitMessage} className="p-5">
+                  <label className="block text-sm font-medium text-neutral-100">
+                    Name
+                  </label>
+                  <input
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, name: e.target.value }))
+                    }
+                    placeholder="Your name"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-neutral-100 placeholder:text-neutral-200/40 outline-none focus:border-white/20 focus:ring-2 focus:ring-lime-300/20"
+                  />
+
+                  <label className="mt-5 block text-sm font-medium text-neutral-100">
+                    Email
+                  </label>
+                  <input
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, email: e.target.value }))
+                    }
+                    placeholder="Your email"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-neutral-100 placeholder:text-neutral-200/40 outline-none focus:border-white/20 focus:ring-2 focus:ring-lime-300/20"
+                  />
+
+                  <label className="mt-5 block text-sm font-medium text-neutral-100">
+                    Message
+                  </label>
+                  <textarea
+                    value={form.message}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, message: e.target.value }))
+                    }
+                    placeholder="Your message"
+                    rows={6}
+                    className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-neutral-100 placeholder:text-neutral-200/40 outline-none focus:border-white/20 focus:ring-2 focus:ring-lime-300/20"
+                  />
+
+                  <button
+                    type="submit"
+                    className="mt-5 w-full rounded-xl bg-lime-300 px-4 py-3 text-sm font-semibold text-neutral-950 hover:opacity-95 transition inline-flex items-center justify-center gap-2"
+                  >
+                    Send Message
+                    <span className="text-neutral-950">
+                      <SendIcon />
+                    </span>
+                  </button>
+
+                  <p className="mt-3 text-xs text-neutral-200/60">
+                    This opens your email client with the message prefilled.
+                  </p>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <footer className="py-10 text-xs text-neutral-200/50">
           © {new Date().getFullYear()} {profile.name}
         </footer>
       </main>
+
+      {/* floating scroll-to-top button */}
+      {showTop ? (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-[70] h-12 w-12 rounded-full bg-lime-300 text-neutral-950 shadow-lg hover:opacity-95 transition grid place-items-center"
+          aria-label="Back to top"
+          title="Back to top"
+        >
+          <ArrowUpIcon className="text-neutral-950" />
+        </button>
+      ) : null}
     </div>
   );
 }
